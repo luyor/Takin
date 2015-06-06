@@ -1,17 +1,37 @@
 package com.takinltd.takin;
 
+import android.location.Geocoder;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 
+
+import com.baidu.location.BDLocation;
+import com.baidu.location.BDLocationListener;
+import com.baidu.location.LocationClient;
 import com.baidu.mapapi.SDKInitializer;
+import com.baidu.mapapi.map.BaiduMap;
 import com.baidu.mapapi.map.MapView;
+import com.baidu.mapapi.map.OverlayOptions;
+import com.baidu.mapapi.map.TextOptions;
+import com.baidu.mapapi.map.UiSettings;
+import com.baidu.mapapi.model.LatLng;
+import com.baidu.navisdk.comapi.geolocate.ILocationChangeListener;
 
 
 public class MainActivity extends AppCompatActivity {
+    private static final String TAG = "Main Activity";
 
     MapView mMapView = null;
+    BaiduMap mBaiduMap = null;
+    UiSettings ui = null;
+
+    LocationManager locationManager;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -21,7 +41,19 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         //获取地图控件引用
         mMapView = (MapView) findViewById(R.id.bmapView);
+
+        mBaiduMap = mMapView.getMap();
+        ui = mBaiduMap.getUiSettings();
+        ui.setAllGesturesEnabled(true);
+
+        locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+        Location location = locationManager .getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+        while (location == null)  {
+            location = locationManager .getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+        }
+        Log.d(TAG, location.getLongitude() + " " + location.getLatitude());
     }
+
     @Override
     protected void onDestroy() {
         super.onDestroy();
@@ -61,4 +93,5 @@ public class MainActivity extends AppCompatActivity {
 
         return super.onOptionsItemSelected(item);
     }
+
 }
