@@ -1,5 +1,6 @@
 package com.takinltd.takin;
 
+import android.location.Criteria;
 import android.location.Geocoder;
 import android.location.Location;
 import android.location.LocationListener;
@@ -22,6 +23,7 @@ import com.baidu.mapapi.map.TextOptions;
 import com.baidu.mapapi.map.UiSettings;
 import com.baidu.mapapi.model.LatLng;
 import com.baidu.navisdk.comapi.geolocate.ILocationChangeListener;
+import com.baidu.nplatform.comapi.map.MapController;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -47,13 +49,26 @@ public class MainActivity extends AppCompatActivity {
         ui.setAllGesturesEnabled(true);
 
         locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
-        Location location = locationManager .getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+        Criteria criteria = new Criteria();
+        String provider = locationManager.getBestProvider(criteria, true);
+        Location location = locationManager.getLastKnownLocation(provider);
+        //locationManager.requestLocationUpdates(provider, 20000, 0, this);
+        /*Location location = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
         while (location == null)  {
             location = locationManager .getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
-        }
+        }*/
         Log.d(TAG, location.getLongitude() + " " + location.getLatitude());
-    }
+        LatLng point = new LatLng(location.getLatitude(), location.getLongitude());
+        OverlayOptions textOption = new TextOptions()
+                .bgColor(0xAAFFFF00)
+                .fontSize(24)
+                .fontColor(0xFFFF00FF)
+                .text("ImHere")
+                .rotate(0)
+                .position(point);
+        mBaiduMap.addOverlay(textOption);
 
+}
     @Override
     protected void onDestroy() {
         super.onDestroy();
