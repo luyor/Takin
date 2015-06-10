@@ -27,6 +27,8 @@
         android:textSize="30dp"
         android:layout_alignParentBottom="true"
         android:layout_alignParentLeft="true"
-        android:layout_alignParentStart="true"/>
+        android:layout_alignParentStart="true"
+        android:maxWidth="150dp"
+        android:minWidth="150dp"/>
 
 </RelativeLayout>
