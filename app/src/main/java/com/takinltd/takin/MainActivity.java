@@ -1,5 +1,7 @@
 package com.takinltd.takin;
 
+import android.content.res.Resources;
+import android.content.res.XmlResourceParser;
 import android.location.Criteria;
 import android.location.Geocoder;
 import android.location.Location;
@@ -19,6 +21,9 @@ import com.baidu.location.BDLocationListener;
 import com.baidu.location.LocationClient;
 import com.baidu.mapapi.SDKInitializer;
 import com.baidu.mapapi.map.BaiduMap;
+import com.baidu.mapapi.map.MapStatus;
+import com.baidu.mapapi.map.MapStatusUpdate;
+import com.baidu.mapapi.map.MapStatusUpdateFactory;
 import com.baidu.mapapi.map.MapView;
 import com.baidu.mapapi.map.OverlayOptions;
 import com.baidu.mapapi.map.TextOptions;
@@ -26,6 +31,13 @@ import com.baidu.mapapi.map.UiSettings;
 import com.baidu.mapapi.model.LatLng;
 import com.baidu.navisdk.comapi.geolocate.ILocationChangeListener;
 import com.baidu.nplatform.comapi.map.MapController;
+
+import org.xmlpull.v1.XmlPullParser;
+import org.xmlpull.v1.XmlPullParserException;
+import org.xmlpull.v1.XmlPullParserFactory;
+
+import java.io.IOException;
+import java.io.StringReader;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -44,12 +56,54 @@ public class MainActivity extends AppCompatActivity {
         //注意该方法要再setContentView方法之前实现
         SDKInitializer.initialize(getApplicationContext());
         setContentView(R.layout.activity_main);
+
         //获取地图控件引用
         mMapView = (MapView) findViewById(R.id.bmapView);
 
         mBaiduMap = mMapView.getMap();
         ui = mBaiduMap.getUiSettings();
         ui.setAllGesturesEnabled(true);
+
+
+        // read xml
+        Resources r = getResources();
+        XmlResourceParser xrp = r.getXml(R.xml.map0);
+        String xml_ns = "";
+        try {
+            while (xrp.getEventType() != XmlResourceParser.END_DOCUMENT) {
+                if (xrp.getEventType() == XmlResourceParser.START_TAG) {
+                    String name = xrp.getName();
+                    if(name.equals("zoomlevel")){
+                        MapStatusUpdate msu = MapStatusUpdateFactory.zoomTo(Float.parseFloat(xrp.getText()));
+                        mBaiduMap.setMapStatus(msu);
+                    }
+                    else if (name.equals("centrepoint")) {
+                        LatLng ll = new LatLng(xrp.getAttributeFloatValue(0,5),xrp.getAttributeFloatValue(1,5));
+                        MapStatusUpdate msu = MapStatusUpdateFactory.newLatLng(ll);
+                        mBaiduMap.setMapStatus(msu);
+                    }
+                    else if (name.equals("controlpoint")){
+                        LatLng point = new LatLng(xrp.getAttributeFloatValue(1,5), xrp.getAttributeFloatValue(2,5));
+                        OverlayOptions textOption = new TextOptions()
+                                .bgColor(0xAAFFFF00)
+                                .fontSize(24)
+                                .fontColor(0xFFFF00FF)
+                                .text(xrp.getIdAttribute())
+                                .rotate(0)
+                                .position(point);
+                        mBaiduMap.addOverlay(textOption);
+                    }
+                } else if (xrp.getEventType() == XmlPullParser.END_TAG) {
+                } else if (xrp.getEventType() == XmlPullParser.TEXT) {
+                }
+                //下一个标签
+                xrp.next();
+            }
+        } catch (XmlPullParserException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
         locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
         Criteria criteria = new Criteria();
