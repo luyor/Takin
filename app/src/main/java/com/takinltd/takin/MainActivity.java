@@ -62,28 +62,29 @@ public class MainActivity extends AppCompatActivity {
 
         mBaiduMap = mMapView.getMap();
         ui = mBaiduMap.getUiSettings();
-        ui.setAllGesturesEnabled(true);
-
+        ui.setAllGesturesEnabled(false);
 
         // read xml
         Resources r = getResources();
         XmlResourceParser xrp = r.getXml(R.xml.map0);
-        String xml_ns = "";
+
         try {
             while (xrp.getEventType() != XmlResourceParser.END_DOCUMENT) {
                 if (xrp.getEventType() == XmlResourceParser.START_TAG) {
                     String name = xrp.getName();
                     if(name.equals("zoomlevel")){
-                        MapStatusUpdate msu = MapStatusUpdateFactory.zoomTo(Float.parseFloat(xrp.getText()));
+                        MapStatusUpdate msu = MapStatusUpdateFactory.zoomTo(Float.parseFloat(xrp.getAttributeValue(0)));
+                        //Log.d(TAG, ""+xrp.getAttributeValue(0));
                         mBaiduMap.setMapStatus(msu);
                     }
                     else if (name.equals("centrepoint")) {
-                        LatLng ll = new LatLng(xrp.getAttributeFloatValue(0,5),xrp.getAttributeFloatValue(1,5));
+                        Log.d(TAG, Float.parseFloat(xrp.getAttributeValue(0))+" "+Float.parseFloat(xrp.getAttributeValue(1)));
+                        LatLng ll = new LatLng(Float.parseFloat(xrp.getAttributeValue(1)), Float.parseFloat(xrp.getAttributeValue(0)));
                         MapStatusUpdate msu = MapStatusUpdateFactory.newLatLng(ll);
                         mBaiduMap.setMapStatus(msu);
                     }
                     else if (name.equals("controlpoint")){
-                        LatLng point = new LatLng(xrp.getAttributeFloatValue(1,5), xrp.getAttributeFloatValue(2,5));
+                        LatLng point = new LatLng(Float.parseFloat(xrp.getAttributeValue(2)), Float.parseFloat(xrp.getAttributeValue(1)));
                         OverlayOptions textOption = new TextOptions()
                                 .bgColor(0xAAFFFF00)
                                 .fontSize(24)
