@@ -71,7 +71,7 @@ public class MainActivity extends AppCompatActivity {
                 .position(point);
         mBaiduMap.addOverlay(textOption);
 
-        Button button = (Button) findViewById(R.id.button_start);
+        final Button button = (Button) findViewById(R.id.button_start);
         button.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 switch (status){
