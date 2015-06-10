@@ -10,6 +10,8 @@ import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.Button;
 
 
 import com.baidu.location.BDLocation;
@@ -32,6 +34,7 @@ public class MainActivity extends AppCompatActivity {
     MapView mMapView = null;
     BaiduMap mBaiduMap = null;
     UiSettings ui = null;
+    String status = "CHOOSING_MAP";
 
     LocationManager locationManager;
     @Override
@@ -68,7 +71,27 @@ public class MainActivity extends AppCompatActivity {
                 .position(point);
         mBaiduMap.addOverlay(textOption);
 
-}
+        Button button = (Button) findViewById(R.id.button_start);
+        button.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                switch (status){
+                    case "CHOOSING_MAP":
+                        status = "RUNNING";
+                        button.setText("Quit");
+                        break;
+                    case "RUNNING":
+                        status = "CHOOSING_MAP";
+                        button.setText("Start");
+                        break;
+                    case "FINISHED":
+                        status = "CHOOSING_MAP";
+                        button.setText("Start");
+                        break;
+                    default:Log.wtf(TAG, "Status not supported");
+                }
+            }
+        });
+    }
     @Override
     protected void onDestroy() {
         super.onDestroy();
