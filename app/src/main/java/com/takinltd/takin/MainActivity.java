@@ -15,16 +15,17 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 
-
 import com.baidu.location.BDLocation;
 import com.baidu.location.BDLocationListener;
 import com.baidu.location.LocationClient;
 import com.baidu.mapapi.SDKInitializer;
 import com.baidu.mapapi.map.BaiduMap;
+import com.baidu.mapapi.map.BaiduMapOptions;
 import com.baidu.mapapi.map.MapStatus;
 import com.baidu.mapapi.map.MapStatusUpdate;
 import com.baidu.mapapi.map.MapStatusUpdateFactory;
 import com.baidu.mapapi.map.MapView;
+import com.baidu.mapapi.map.MyLocationData;
 import com.baidu.mapapi.map.OverlayOptions;
 import com.baidu.mapapi.map.TextOptions;
 import com.baidu.mapapi.map.UiSettings;
@@ -44,10 +45,9 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG = "Main Activity";
 
     MapView mMapView = null;
-    BaiduMap mBaiduMap = null;
+    BaiduMap mBaiduMap = null;;
     UiSettings ui = null;
     String status = "CHOOSING_MAP";
-
     LocationManager locationManager;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,10 +59,13 @@ public class MainActivity extends AppCompatActivity {
 
         //获取地图控件引用
         mMapView = (MapView) findViewById(R.id.bmapView);
-
         mBaiduMap = mMapView.getMap();
+        //设置缩放范围
+        mBaiduMap.setMaxAndMinZoomLevel(20,16);
         ui = mBaiduMap.getUiSettings();
-        ui.setAllGesturesEnabled(false);
+        mMapView.showScaleControl(false);
+        mMapView.showZoomControls(false);
+       // ui.setAllGesturesEnabled(false);
 
         // read xml
         Resources r = getResources();
@@ -84,11 +87,15 @@ public class MainActivity extends AppCompatActivity {
                         mBaiduMap.setMapStatus(msu);
                     }
                     else if (name.equals("controlpoint")){
+                        int bgcolor = 0xAAFF0000;
+                        if (Integer.parseInt(xrp.getIdAttribute())==0){
+                            bgcolor = 0xAA00FF00;
+                        }
                         LatLng point = new LatLng(Float.parseFloat(xrp.getAttributeValue(2)), Float.parseFloat(xrp.getAttributeValue(1)));
                         OverlayOptions textOption = new TextOptions()
-                                .bgColor(0xAAFFFF00)
+                                .bgColor(bgcolor)
                                 .fontSize(24)
-                                .fontColor(0xFFFF00FF)
+                                .fontColor(0xFF000000)
                                 .text(xrp.getIdAttribute())
                                 .rotate(0)
                                 .position(point);
@@ -116,7 +123,7 @@ public class MainActivity extends AppCompatActivity {
             location = locationManager .getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
         }*/
         Log.d(TAG, location.getLongitude() + " " + location.getLatitude());
-        LatLng point = new LatLng(location.getLatitude(), location.getLongitude());
+        /*LatLng point = new LatLng(location.getLatitude(), location.getLongitude());
         OverlayOptions textOption = new TextOptions()
                 .bgColor(0xAAFFFF00)
                 .fontSize(24)
@@ -125,7 +132,7 @@ public class MainActivity extends AppCompatActivity {
                 .rotate(0)
                 .position(point);
         mBaiduMap.addOverlay(textOption);
-
+*/
         final Button button = (Button) findViewById(R.id.button_start);
         button.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
