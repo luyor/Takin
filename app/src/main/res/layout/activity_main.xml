@@ -26,6 +26,18 @@
         android:maxWidth="150dp"
         android:minWidth="150dp"
         android:layout_alignParentBottom="true"
-        android:layout_alignParentLeft="true" />
+        android:layout_alignParentLeft="true"/>
+
+    <Chronometer
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/chronometer"
+        android:layout_alignTop="@+id/button_start"
+        android:layout_toRightOf="@+id/button_start"
+        android:layout_alignBottom="@+id/button_start"
+        android:gravity="center_vertical|center_horizontal"
+        android:layout_alignParentRight="true"
+        android:textSize="30dp"
+        android:format="%s"/>
 
 </RelativeLayout>

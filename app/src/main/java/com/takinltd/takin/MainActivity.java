@@ -8,12 +8,14 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
+import android.widget.Chronometer;
 
 import com.baidu.location.BDLocation;
 import com.baidu.location.BDLocationListener;
@@ -44,18 +46,25 @@ import java.io.StringReader;
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "Main Activity";
 
-    MapView mMapView = null;
-    BaiduMap mBaiduMap = null;;
+    private MapView mMapView = null;
+    private BaiduMap mBaiduMap = null;
     UiSettings ui = null;
     String status = "CHOOSING_MAP";
-    LocationManager locationManager;
+    private LocationManager locationManager;
+    private Button button;
+    private Chronometer timer;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         //在使用SDK各组件之前初始化context信息，传入ApplicationContext
         //注意该方法要再setContentView方法之前实现
         SDKInitializer.initialize(getApplicationContext());
         setContentView(R.layout.activity_main);
+
+        button = (Button) findViewById(R.id.button_start);
+        timer = (Chronometer)this.findViewById(R.id.chronometer);
 
         //获取地图控件引用
         mMapView = (MapView) findViewById(R.id.bmapView);
@@ -133,27 +142,46 @@ public class MainActivity extends AppCompatActivity {
                 .position(point);
         mBaiduMap.addOverlay(textOption);
 */
-        final Button button = (Button) findViewById(R.id.button_start);
+        SetButton();
+        //change status and set timer when button clicked
         button.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 switch (status){
                     case "CHOOSING_MAP":
                         status = "RUNNING";
-                        button.setText("Quit");
+                        timer.setBase(SystemClock.elapsedRealtime());
+                        timer.start();
                         break;
                     case "RUNNING":
                         status = "CHOOSING_MAP";
-                        button.setText("Start");
+                        timer.stop();
+                        timer.setBase(SystemClock.elapsedRealtime());
                         break;
                     case "FINISHED":
                         status = "CHOOSING_MAP";
-                        button.setText("Start");
                         break;
                     default:Log.wtf(TAG, "Status not supported");
                 }
+                SetButton();
             }
         });
     }
+    //change button text
+    void SetButton(){
+        switch (status){
+            case "CHOOSING_MAP":
+                button.setText("Start");
+                break;
+            case "RUNNING":
+                button.setText("Quit");
+                break;
+            case "FINISHED":
+                button.setText("Finish");
+                break;
+            default:Log.wtf(TAG, "Status not supported");
+        }
+    }
+
     @Override
     protected void onDestroy() {
         super.onDestroy();
