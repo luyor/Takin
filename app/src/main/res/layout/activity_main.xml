@@ -23,6 +23,8 @@
         android:id="@+id/button_start"
         android:layout_marginStart="28dp"
         android:textSize="30dp"
+        android:textColor="#FFFFFFFF"
+
         android:maxWidth="150dp"
         android:minWidth="150dp"
         android:layout_alignParentBottom="true"
@@ -38,6 +40,7 @@
         android:gravity="center_vertical|center_horizontal"
         android:layout_alignParentRight="true"
         android:textSize="30dp"
+        android:textColor="#FFFFFFFF"
         android:format="%s"/>
 
     <ImageView

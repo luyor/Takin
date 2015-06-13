@@ -126,6 +126,10 @@ public class MainActivity extends AppCompatActivity{
         Location location = locationManager.getLastKnownLocation(provider);
         //locationManager.requestLocationUpdates(provider, 20000, 0, this);
 
+        button.setBackgroundColor(-16777216);
+        button.getBackground().setAlpha(150);
+        timer.setBackgroundColor(-16777216);
+        timer.getBackground().setAlpha(150);
         SetStatus();
         //change status and set timer when button clicked
         button.setOnClickListener(new View.OnClickListener() {
