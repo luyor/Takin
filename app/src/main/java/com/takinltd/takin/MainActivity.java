@@ -9,10 +9,13 @@ import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.os.SystemClock;
+import android.support.v4.view.GestureDetectorCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.view.GestureDetector;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
 import android.widget.Chronometer;
@@ -41,10 +44,13 @@ import org.xmlpull.v1.XmlPullParserFactory;
 
 import java.io.IOException;
 import java.io.StringReader;
+import java.util.EventListener;
 
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity{
     private static final String TAG = "Main Activity";
+
+    private GestureDetectorCompat mDetector;
 
     private MapView mMapView = null;
     private BaiduMap mBaiduMap = null;
@@ -53,6 +59,10 @@ public class MainActivity extends AppCompatActivity {
     private LocationManager locationManager;
     private Button button;
     private Chronometer timer;
+    private int currentMap = 0;
+    private int totMap = 1;
+
+    private View gesture_space;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -65,16 +75,24 @@ public class MainActivity extends AppCompatActivity {
 
         button = (Button) findViewById(R.id.button_start);
         timer = (Chronometer)this.findViewById(R.id.chronometer);
+        //gesture_space = this.findViewById(R.id.gestureOverlayView);
+        //gesture_space.setOnTouchListener();
 
         //获取地图控件引用
         mMapView = (MapView) findViewById(R.id.bmapView);
         mBaiduMap = mMapView.getMap();
+        mBaiduMap.setOnMapTouchListener(new BaiduMap.OnMapTouchListener() {
+            @Override
+            public void onTouch(MotionEvent event) {
+                mDetector.onTouchEvent(event);
+            }
+        });
         //设置缩放范围
-        mBaiduMap.setMaxAndMinZoomLevel(20,16);
+        mBaiduMap.setMaxAndMinZoomLevel(20, 16);
         ui = mBaiduMap.getUiSettings();
         mMapView.showScaleControl(false);
         mMapView.showZoomControls(false);
-       // ui.setAllGesturesEnabled(false);
+        ui.setAllGesturesEnabled(false);
 
         // read xml
         Resources r = getResources();
@@ -127,22 +145,8 @@ public class MainActivity extends AppCompatActivity {
         String provider = locationManager.getBestProvider(criteria, true);
         Location location = locationManager.getLastKnownLocation(provider);
         //locationManager.requestLocationUpdates(provider, 20000, 0, this);
-        /*Location location = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
-        while (location == null)  {
-            location = locationManager .getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
-        }*/
-        Log.d(TAG, location.getLongitude() + " " + location.getLatitude());
-        /*LatLng point = new LatLng(location.getLatitude(), location.getLongitude());
-        OverlayOptions textOption = new TextOptions()
-                .bgColor(0xAAFFFF00)
-                .fontSize(24)
-                .fontColor(0xFFFF00FF)
-                .text("ImHere")
-                .rotate(0)
-                .position(point);
-        mBaiduMap.addOverlay(textOption);
-*/
-        SetButton();
+
+        SetStatus();
         //change status and set timer when button clicked
         button.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
@@ -156,30 +160,56 @@ public class MainActivity extends AppCompatActivity {
                         status = "CHOOSING_MAP";
                         timer.stop();
                         timer.setBase(SystemClock.elapsedRealtime());
+                        mMapView.bringToFront();
                         break;
                     case "FINISHED":
                         status = "CHOOSING_MAP";
                         break;
                     default:Log.wtf(TAG, "Status not supported");
                 }
-                SetButton();
+                SetStatus();
             }
         });
+        mDetector = new GestureDetectorCompat(this, new MyGestureListener());
     }
-    //change button text
-    void SetButton(){
+    class MyGestureListener extends GestureDetector.SimpleOnGestureListener{
+        public static final int MAJOR_MOVE = 0;
+
+        @Override
+        public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+            super.onFling(e1, e2, velocityX, velocityY);
+            int dx = (int) (e2.getX() - e1.getX());
+            if (Math.abs(dx) > MAJOR_MOVE && Math.abs(velocityX) > Math.abs(velocityY)) { //降噪处理，必须有较大的动作才识别
+                if (velocityX > 0) {
+                    ChangeMap((currentMap+1)%totMap);
+                } else {
+                    ChangeMap((currentMap-1)%totMap);
+                }
+            }
+            return true;
+        }
+    }
+
+    //change button/gesture when status changes
+    private void SetStatus(){
         switch (status){
             case "CHOOSING_MAP":
                 button.setText("Start");
+                //gesture_space.bringToFront();
                 break;
             case "RUNNING":
                 button.setText("Quit");
+                //mMapView.bringToFront();
                 break;
             case "FINISHED":
                 button.setText("Finish");
                 break;
             default:Log.wtf(TAG, "Status not supported");
         }
+    }
+
+    private void ChangeMap(int index){
+        Log.d(TAG, "change map");
     }
 
     @Override
