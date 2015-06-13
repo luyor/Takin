@@ -14,7 +14,7 @@
         android:layout_height="fill_parent"
         android:clickable="true"
         android:layout_alignParentTop="true"
-        android:layout_above="@+id/button_start"/>
+        android:layout_alignParentBottom="true"/>
 
     <Button
         android:layout_width="wrap_content"

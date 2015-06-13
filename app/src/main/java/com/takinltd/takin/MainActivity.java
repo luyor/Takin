@@ -52,6 +52,7 @@ import org.xmlpull.v1.XmlPullParserFactory;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.EventListener;
+import java.util.Vector;
 
 
 public class MainActivity extends AppCompatActivity{
@@ -67,7 +68,7 @@ public class MainActivity extends AppCompatActivity{
     private Button button;
     private Chronometer timer;
     private int currentMap = 0;
-    private int totMap = 1;
+    private int totMap;
 
     private View gesture_space;
 
@@ -80,6 +81,8 @@ public class MainActivity extends AppCompatActivity{
     float[] values = new float[3];
     float[] rotationmatrix = new float[9];
     ImageView iv;
+
+    Vector maps = new Vector(0);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -99,37 +102,120 @@ public class MainActivity extends AppCompatActivity{
 
         button = (Button) findViewById(R.id.button_start);
         timer = (Chronometer)this.findViewById(R.id.chronometer);
-        //gesture_space = this.findViewById(R.id.gestureOverlayView);
-        //gesture_space.setOnTouchListener();
 
         //获取地图控件引用
         mMapView = (MapView) findViewById(R.id.bmapView);
         mBaiduMap = mMapView.getMap();
-        mBaiduMap.setOnMapTouchListener(new BaiduMap.OnMapTouchListener() {
-            @Override
-            public void onTouch(MotionEvent event) {
-                mDetector.onTouchEvent(event);
-            }
-        });
+
         //设置缩放范围
-        mBaiduMap.setMaxAndMinZoomLevel(20, 16);
         ui = mBaiduMap.getUiSettings();
         mMapView.showScaleControl(false);
         mMapView.showZoomControls(false);
         ui.setAllGesturesEnabled(false);
 
-        // read xml
-        Resources r = getResources();
-        XmlResourceParser xrp = r.getXml(R.xml.map0);
+        // set xml
+        maps.addElement(R.xml.map0);
+        maps.addElement(R.xml.map1);
+        totMap = maps.size();
+        ChangeMap(currentMap);
 
+        locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+        Criteria criteria = new Criteria();
+        String provider = locationManager.getBestProvider(criteria, true);
+        Location location = locationManager.getLastKnownLocation(provider);
+        //locationManager.requestLocationUpdates(provider, 20000, 0, this);
+
+        SetStatus();
+        //change status and set timer when button clicked
+        button.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                switch (status){
+                    case "CHOOSING_MAP":
+                        status = "RUNNING";
+                        timer.setBase(SystemClock.elapsedRealtime());
+                        timer.start();
+                        break;
+                    case "RUNNING":
+                        status = "CHOOSING_MAP";
+                        timer.stop();
+                        timer.setBase(SystemClock.elapsedRealtime());
+                        break;
+                    case "FINISHED":
+                        status = "CHOOSING_MAP";
+                        break;
+                    default:Log.wtf(TAG, "Status not supported");
+                }
+                SetStatus();
+            }
+        });
+        mDetector = new GestureDetectorCompat(this, new MyGestureListener());
+    }
+    class MyGestureListener extends GestureDetector.SimpleOnGestureListener{
+        public static final int MAJOR_MOVE = 0;
+
+        @Override
+        public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+            super.onFling(e1, e2, velocityX, velocityY);
+            int dx = (int) (e2.getX() - e1.getX());
+            if (Math.abs(dx) > MAJOR_MOVE && Math.abs(velocityX) > Math.abs(velocityY)) { //降噪处理，必须有较大的动作才识别
+                if (velocityX > 0) {
+                    ChangeMap((currentMap+1)%totMap);
+                } else {
+                    ChangeMap((currentMap-1+totMap)%totMap);
+                }
+            }
+            return true;
+        }
+    }
+
+    //change button/gesture when status changes
+    private void SetStatus(){
+        switch (status){
+            case "CHOOSING_MAP":
+                button.setText("Start");
+                mBaiduMap.setOnMapTouchListener(new BaiduMap.OnMapTouchListener() {
+                    @Override
+                    public void onTouch(MotionEvent event) {
+                        mDetector.onTouchEvent(event);
+                    }
+                });
+                ui.setScrollGesturesEnabled(false);
+                ui.setZoomGesturesEnabled(false);
+                break;
+            case "RUNNING":
+                button.setText("Quit");
+                mBaiduMap.setOnMapTouchListener(new BaiduMap.OnMapTouchListener() {
+                    @Override
+                    public void onTouch(MotionEvent motionEvent) {
+
+                    }
+                });
+                ui.setScrollGesturesEnabled(true);
+                ui.setZoomGesturesEnabled(true);
+                break;
+            case "FINISHED":
+                button.setText("Finish");
+                break;
+            default:
+                Log.wtf(TAG, "Status not supported");
+        }
+    }
+
+    private void ChangeMap(int index){
+        //Log.d(TAG, "change map:"+index);
+        currentMap = index;
+        Resources r = getResources();
+        XmlResourceParser xrp = r.getXml((int)maps.elementAt(index));
         try {
             while (xrp.getEventType() != XmlResourceParser.END_DOCUMENT) {
                 if (xrp.getEventType() == XmlResourceParser.START_TAG) {
                     String name = xrp.getName();
                     if(name.equals("zoomlevel")){
-                        MapStatusUpdate msu = MapStatusUpdateFactory.zoomTo(Float.parseFloat(xrp.getAttributeValue(0)));
-                        //Log.d(TAG, ""+xrp.getAttributeValue(0));
+                        float zoomlevel = Float.parseFloat(xrp.getAttributeValue(0));
+                        mBaiduMap.setMaxAndMinZoomLevel(20, zoomlevel);
+                        MapStatusUpdate msu = MapStatusUpdateFactory.zoomTo(zoomlevel);
                         mBaiduMap.setMapStatus(msu);
+
                     }
                     else if (name.equals("centrepoint")) {
                         Log.d(TAG, Float.parseFloat(xrp.getAttributeValue(0))+" "+Float.parseFloat(xrp.getAttributeValue(1)));
@@ -163,77 +249,7 @@ public class MainActivity extends AppCompatActivity{
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-        locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
-        Criteria criteria = new Criteria();
-        String provider = locationManager.getBestProvider(criteria, true);
-        Location location = locationManager.getLastKnownLocation(provider);
-        //locationManager.requestLocationUpdates(provider, 20000, 0, this);
-
-        SetStatus();
-        //change status and set timer when button clicked
-        button.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                switch (status){
-                    case "CHOOSING_MAP":
-                        status = "RUNNING";
-                        timer.setBase(SystemClock.elapsedRealtime());
-                        timer.start();
-                        break;
-                    case "RUNNING":
-                        status = "CHOOSING_MAP";
-                        timer.stop();
-                        timer.setBase(SystemClock.elapsedRealtime());
-                        mMapView.bringToFront();
-                        break;
-                    case "FINISHED":
-                        status = "CHOOSING_MAP";
-                        break;
-                    default:Log.wtf(TAG, "Status not supported");
-                }
-                SetStatus();
-            }
-        });
-        mDetector = new GestureDetectorCompat(this, new MyGestureListener());
-    }
-    class MyGestureListener extends GestureDetector.SimpleOnGestureListener{
-        public static final int MAJOR_MOVE = 0;
-
-        @Override
-        public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
-            super.onFling(e1, e2, velocityX, velocityY);
-            int dx = (int) (e2.getX() - e1.getX());
-            if (Math.abs(dx) > MAJOR_MOVE && Math.abs(velocityX) > Math.abs(velocityY)) { //降噪处理，必须有较大的动作才识别
-                if (velocityX > 0) {
-                    ChangeMap((currentMap+1)%totMap);
-                } else {
-                    ChangeMap((currentMap-1)%totMap);
-                }
-            }
-            return true;
-        }
-    }
-
-    //change button/gesture when status changes
-    private void SetStatus(){
-        switch (status){
-            case "CHOOSING_MAP":
-                button.setText("Start");
-                //gesture_space.bringToFront();
-                break;
-            case "RUNNING":
-                button.setText("Quit");
-                //mMapView.bringToFront();
-                break;
-            case "FINISHED":
-                button.setText("Finish");
-                break;
-            default:Log.wtf(TAG, "Status not supported");
-        }
-    }
-
-    private void ChangeMap(int index){
-        Log.d(TAG, "change map");
+        xrp.close();
     }
 
     final SensorEventListener myListener = new SensorEventListener() {
