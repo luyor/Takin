@@ -90,6 +90,7 @@ public class MainActivity extends AppCompatActivity{
         SDKInitializer.initialize(getApplicationContext());
         setContentView(R.layout.activity_main);
 
+        // about orientation info obtaining
         iv = (ImageView)findViewById(R.id.compass);
         sm=(SensorManager)getSystemService(Context.SENSOR_SERVICE);
         aSensor=sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
@@ -196,6 +197,7 @@ public class MainActivity extends AppCompatActivity{
         });
         mDetector = new GestureDetectorCompat(this, new MyGestureListener());
     }
+
     class MyGestureListener extends GestureDetector.SimpleOnGestureListener{
         public static final int MAJOR_MOVE = 0;
 
@@ -301,9 +303,9 @@ public class MainActivity extends AppCompatActivity{
         int id = item.getItemId();
 
         //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
+        /*if (id == R.id.action_settings) {
             return true;
-        }
+        }*/
 
         return super.onOptionsItemSelected(item);
     }

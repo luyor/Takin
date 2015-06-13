@@ -2,8 +2,14 @@
       xmlns:app="http://schemas.android.com/apk/res-auto"
       xmlns:tools="http://schemas.android.com/tools"
       tools:context=".MainActivity">
-    <item android:id="@+id/action_settings"
+    <!--<item android:id="@+id/action_settings"
           android:title="@string/action_settings"
           android:orderInCategory="100"
-          app:showAsAction="ifRoom"/>
+          app:showAsAction="ifRoom"/>-->
+
+    <item android:id="@+id/yourPosition"
+          android:title="@string/yourposition"
+          android:icon="@drawable/yourposition"
+          android:orderInCategory="100"
+          app:showAsAction="always"/>
 </menu>
