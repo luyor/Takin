@@ -40,4 +40,11 @@
         android:textSize="30dp"
         android:format="%s"/>
 
+    <ImageView
+        android:id="@+id/compass"
+        android:src="@drawable/compass"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        />
+
 </RelativeLayout>
