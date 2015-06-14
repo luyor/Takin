@@ -30,6 +30,7 @@ import android.widget.ImageView;
 import com.baidu.location.BDLocation;
 import com.baidu.location.BDLocationListener;
 import com.baidu.location.LocationClient;
+import com.baidu.location.LocationClientOption;
 import com.baidu.mapapi.SDKInitializer;
 import com.baidu.mapapi.map.BaiduMap;
 import com.baidu.mapapi.map.BaiduMapOptions;
@@ -70,8 +71,6 @@ public class MainActivity extends AppCompatActivity{
     private int currentMap = 0;
     private int totMap;
 
-    private View gesture_space;
-
     // for direction info
     private SensorManager sm=null;
     private Sensor aSensor=null;
@@ -88,6 +87,9 @@ public class MainActivity extends AppCompatActivity{
     ImageView iv;
 
     Vector maps = new Vector(0);
+
+    private LocationClient mLocationClient = null;
+    private BDLocationListener myLocationListener = new MyLocationListener();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -118,6 +120,26 @@ public class MainActivity extends AppCompatActivity{
         mMapView.showScaleControl(false);
         mMapView.showZoomControls(false);
         ui.setAllGesturesEnabled(false);
+        mBaiduMap.setMyLocationEnabled(true);
+
+        //start listening location
+        mLocationClient = new LocationClient(getApplicationContext());     //声明LocationClient类
+        mLocationClient.registerLocationListener(myLocationListener);    //注册监听函数
+        mLocationClient = new LocationClient(getApplicationContext());     //声明LocationClient类
+        mLocationClient.registerLocationListener(myLocationListener);    //注册监听函数
+        LocationClientOption option = new LocationClientOption();
+        option.setOpenGps(true);
+        option.setAddrType("all");// 返回的定位结果包含地址信息
+        option.setCoorType("bd09ll");// 返回的定位结果是百度经纬度,默认值gcj02
+        // locationOption.disableCache(true);//禁止启用缓存定位
+        //option.setAddrType("all");// 返回的定位结果包含地址信息
+        option.setScanSpan(2000);//设置定时定位的时间间隔。单位ms
+        //option.setProdName("k");
+        mLocationClient.setLocOption(option);
+        if (mLocationClient!=null&&!mLocationClient.isStarted()){
+            mLocationClient.requestLocation();
+            mLocationClient.start();
+        }
 
         // set xml
         maps.addElement(R.xml.map0);
@@ -185,6 +207,25 @@ public class MainActivity extends AppCompatActivity{
             marker[i] = 0;
         }
     }
+
+    public class MyLocationListener implements BDLocationListener {
+        @Override
+        public void onReceiveLocation(BDLocation location) {
+            if (location == null)
+                return ;
+            LatLng mypoint3 = new LatLng(location.getLatitude(), location.getLongitude());
+            OverlayOptions textOption = new TextOptions()
+                    .bgColor(0xAAFFFF00)
+                    .fontSize(24)
+                    .fontColor(0xFFFF00FF)
+                    .text("Iykon")
+                    .rotate(0)
+                    .position(mypoint3);
+            mBaiduMap.addOverlay(textOption);
+
+        }
+    }
+
     //change button/gesture when status changes
     private void SetStatus(){
         switch (status){
@@ -331,7 +372,11 @@ public class MainActivity extends AppCompatActivity{
         // Handle action bar item clicks here. The action bar will
         // automatically handle clicks on the Home/Up button, so long
         // as you specify a parent activity in AndroidManifest.xml.
+
         int id = item.getItemId();
+        if (id == R.id.yourPosition) {
+            Log.d(TAG, "show position");
+        }
 
         //noinspection SimplifiableIfStatement
         /*if (id == R.id.action_settings) {
