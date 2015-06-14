@@ -14,6 +14,7 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.SystemClock;
 import android.support.v4.view.GestureDetectorCompat;
 import android.support.v7.app.AppCompatActivity;
@@ -34,17 +35,19 @@ import com.baidu.location.LocationClientOption;
 import com.baidu.mapapi.SDKInitializer;
 import com.baidu.mapapi.map.BaiduMap;
 import com.baidu.mapapi.map.BaiduMapOptions;
+import com.baidu.mapapi.map.BitmapDescriptor;
+import com.baidu.mapapi.map.BitmapDescriptorFactory;
 import com.baidu.mapapi.map.MapStatus;
 import com.baidu.mapapi.map.MapStatusUpdate;
 import com.baidu.mapapi.map.MapStatusUpdateFactory;
 import com.baidu.mapapi.map.MapView;
+import com.baidu.mapapi.map.Marker;
+import com.baidu.mapapi.map.MarkerOptions;
 import com.baidu.mapapi.map.MyLocationData;
 import com.baidu.mapapi.map.OverlayOptions;
 import com.baidu.mapapi.map.TextOptions;
 import com.baidu.mapapi.map.UiSettings;
 import com.baidu.mapapi.model.LatLng;
-import com.baidu.navisdk.comapi.geolocate.ILocationChangeListener;
-import com.baidu.nplatform.comapi.map.MapController;
 
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
@@ -53,6 +56,8 @@ import org.xmlpull.v1.XmlPullParserFactory;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.EventListener;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.Vector;
 
 
@@ -70,6 +75,11 @@ public class MainActivity extends AppCompatActivity{
     private Chronometer timer;
     private int currentMap = 0;
     private int totMap;
+
+    public OverlayOptions hereoption;
+    public LatLng mypoint3;
+    private Marker marker;
+    private boolean markerexists = false;
 
     // for direction info
     private SensorManager sm=null;
@@ -120,34 +130,30 @@ public class MainActivity extends AppCompatActivity{
         //start listening location
         mLocationClient = new LocationClient(getApplicationContext());     //声明LocationClient类
         mLocationClient.registerLocationListener(myLocationListener);    //注册监听函数
-        mLocationClient = new LocationClient(getApplicationContext());     //声明LocationClient类
-        mLocationClient.registerLocationListener(myLocationListener);    //注册监听函数
         LocationClientOption option = new LocationClientOption();
-        option.setOpenGps(true);
-        option.setAddrType("all");// 返回的定位结果包含地址信息
-        option.setCoorType("bd09ll");// 返回的定位结果是百度经纬度,默认值gcj02
-        // locationOption.disableCache(true);//禁止启用缓存定位
-        //option.setAddrType("all");// 返回的定位结果包含地址信息
-        option.setScanSpan(2000);//设置定时定位的时间间隔。单位ms
-        //option.setProdName("k");
+        option.setLocationMode(LocationClientOption.LocationMode.Hight_Accuracy);//设置定位模式
+        option.setCoorType("bd09ll");//返回的定位结果是百度经纬度，默认值gcj02
+        option.setScanSpan(5000);//设置发起定位请求的间隔时间为5000ms
+        option.setIsNeedAddress(true);//返回的定位结果包含地址信息
+        option.setNeedDeviceDirect(true);//返回的定位结果包含手机机头的方向
         mLocationClient.setLocOption(option);
-        if (mLocationClient!=null&&!mLocationClient.isStarted()){
-            mLocationClient.requestLocation();
-            mLocationClient.start();
-        }
+        Log.d(TAG, mLocationClient.getLocOption().getScanSpan() + "");
+
+        mLocationClient.start();
+        //}
 
         // set xml
         maps.addElement(R.xml.map0);
         maps.addElement(R.xml.map1);
         totMap = maps.size();
         ChangeMap(currentMap);
-
+/*
         locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
         Criteria criteria = new Criteria();
         String provider = locationManager.getBestProvider(criteria, true);
         Location location = locationManager.getLastKnownLocation(provider);
         //locationManager.requestLocationUpdates(provider, 20000, 0, this);
-
+*/
         button.setBackgroundColor(-16777216);
         button.getBackground().setAlpha(150);
         timer.setBackgroundColor(-16777216);
@@ -176,9 +182,20 @@ public class MainActivity extends AppCompatActivity{
             }
         });
         mDetector = new GestureDetectorCompat(this, new MyGestureListener());
+
+        handler.removeCallbacks(runnable);
+        handler.postDelayed(runnable,2000);
     }
 
-    class MyGestureListener extends GestureDetector.SimpleOnGestureListener{
+    private Handler handler = new Handler();
+    private Runnable runnable = new Runnable() {
+        public void run () {
+            mLocationClient.start();
+            handler.postDelayed(this,2000);
+        }
+    };
+
+    class MyGestureListener extends GestureDetector.SimpleOnGestureListener {
         public static final int MAJOR_MOVE = 0;
 
         @Override
@@ -199,20 +216,24 @@ public class MainActivity extends AppCompatActivity{
     public class MyLocationListener implements BDLocationListener {
         @Override
         public void onReceiveLocation(BDLocation location) {
+
+            //Log.d(TAG, "THIS:");
             if (location == null)
                 return ;
-            LatLng mypoint3 = new LatLng(location.getLatitude(), location.getLongitude());
-            OverlayOptions textOption = new TextOptions()
-                    .bgColor(0xAAFFFF00)
-                    .fontSize(24)
-                    .fontColor(0xFFFF00FF)
-                    .text("Iykon")
-                    .rotate(0)
-                    .position(mypoint3);
-            mBaiduMap.addOverlay(textOption);
-
+            BitmapDescriptor bitmap = BitmapDescriptorFactory
+                    .fromResource(R.drawable.imhere);
+            mypoint3 = new LatLng(location.getLatitude(), location.getLongitude());
+            hereoption = new MarkerOptions()
+                    .position(mypoint3)
+                    .icon(bitmap);
+            if(markerexists)
+                marker.remove();
+            else
+                markerexists = true;
+            marker = (Marker) (mBaiduMap.addOverlay(hereoption));
         }
     }
+
 
     //change button/gesture when status changes
     private void SetStatus(){
@@ -369,5 +390,4 @@ public class MainActivity extends AppCompatActivity{
 
         return super.onOptionsItemSelected(item);
     }
-
 }
