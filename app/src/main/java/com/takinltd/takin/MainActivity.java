@@ -9,7 +9,6 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.location.Criteria;
-import android.location.Geocoder;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -76,14 +75,23 @@ public class MainActivity extends AppCompatActivity{
     private int totMap;
 
     public OverlayOptions hereoption;
+    public LatLng mypoint3;
     private Marker marker;
     private boolean markerexists = false;
+
     LocationListener locationListener;
 
     // for direction info
     private SensorManager sm=null;
     private Sensor aSensor=null;
     private Sensor mSensor=null;
+
+    //marker 用于记录当前的点是否到达 currentpoint表示当前的点
+    int[] markers = new int[30];
+    int currentpoint = 0;
+    int point_number = 0;
+    double[][] pointlocation = new double[30][2];
+    final double delta = 0.00015;
     float[] accelerometerValues = new float[3];
     float[] magneticFieldValues = new float[3];
     float[] values = new float[3];
@@ -137,28 +145,31 @@ public class MainActivity extends AppCompatActivity{
         button.getBackground().setAlpha(150);
         timer.setBackgroundColor(-16777216);
         timer.getBackground().setAlpha(150);
-        SetStatus();
+        SetStatus("CHOOSING_MAP");
         //change status and set timer when button clicked
         button.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 switch (status) {
                     case "CHOOSING_MAP":
-                        status = "RUNNING";
                         timer.setBase(SystemClock.elapsedRealtime());
                         timer.start();
+                        SetStatus("RUNNING");
                         break;
                     case "RUNNING":
-                        status = "CHOOSING_MAP";
+                        ChangeMap(currentMap);
                         timer.stop();
                         timer.setBase(SystemClock.elapsedRealtime());
+                        SetStatus("CHOOSING_MAP");
                         break;
                     case "FINISHED":
-                        status = "CHOOSING_MAP";
+                        ChangeMap(currentMap);
+                        SetStatus("CHOOSING_MAP");
+                        timer.setBase(SystemClock.elapsedRealtime());
                         break;
                     default:
                         Log.wtf(TAG, "Status not supported");
                 }
-                SetStatus();
+
             }
         });
         mDetector = new GestureDetectorCompat(this, new MyGestureListener());
@@ -176,10 +187,9 @@ public class MainActivity extends AppCompatActivity{
         String provider = locationManager.getBestProvider(criteria, true);
 
         locationListener = new MyLocationListener();
-
-        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 60000, 25, locationListener);
-
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 2000, 10, locationListener);
     }
+
     BitmapDescriptor bitmap;
     private class MyLocationListener implements LocationListener {
 
@@ -194,6 +204,14 @@ public class MainActivity extends AppCompatActivity{
 // sourceLatLng待转换坐标
             converter.coord(sourceLatLng);
             LatLng desLatLng = converter.convert();
+            if (status.equals("RUNNING")&&checkreach(desLatLng)){
+                markers[currentpoint]=1;
+                currentpoint+=1;
+                ChangeMap(currentMap);
+                if (currentpoint == point_number){
+                    SetStatus("FINISHED");
+                }
+            }
 
             hereoption = new MarkerOptions()
                     .position(desLatLng)
@@ -232,10 +250,28 @@ public class MainActivity extends AppCompatActivity{
             }
             return true;
         }
+    };
+    void initialize(){
+        int i;
+        currentpoint = 0;
+        point_number = 0;
+        for (i = 0;i<30;i++){
+            markers[i] = 0;
+        }
+    }
+
+    boolean checkreach(LatLng desLatLng){
+        if (Math.abs(pointlocation[currentpoint][0]-desLatLng.longitude)<delta &&
+                Math.abs(pointlocation[currentpoint][1]-desLatLng.latitude)<delta){
+            Toast.makeText(getApplicationContext(),"One point reached!",Toast.LENGTH_LONG).show();
+            return true;
+        }
+        else return false;
     }
 
     //change button/gesture when status changes
-    private void SetStatus(){
+    private void SetStatus(String current){
+        status = current;
         switch (status){
             case "CHOOSING_MAP":
                 button.setText("Start");
@@ -245,6 +281,8 @@ public class MainActivity extends AppCompatActivity{
                         mDetector.onTouchEvent(event);
                     }
                 });
+                initialize();//对marker 和 currentpoint 进行初始化
+                ChangeMap(currentMap);
                 ui.setScrollGesturesEnabled(false);
                 ui.setZoomGesturesEnabled(false);
                 break;
@@ -261,7 +299,7 @@ public class MainActivity extends AppCompatActivity{
                 break;
             case "FINISHED":
                 button.setText("Finish");
-                break;
+                timer.stop();
             default:
                 Log.wtf(TAG, "Status not supported");
         }
@@ -291,10 +329,16 @@ public class MainActivity extends AppCompatActivity{
                     }
                     else if (name.equals("controlpoint")){
                         int bgcolor = 0xAAFF0000;
-                        if (Integer.parseInt(xrp.getIdAttribute())==0){
+                        int currentindex;
+
+                        currentindex = Integer.parseInt(xrp.getIdAttribute());
+                        pointlocation[currentindex][0] = Float.parseFloat(xrp.getAttributeValue(1));
+                        pointlocation[currentindex][1] =Float.parseFloat(xrp.getAttributeValue(2));
+                        point_number += 1;
+                        if (markers[Integer.parseInt(xrp.getIdAttribute())]==1){
                             bgcolor = 0xAA00FF00;
                         }
-                        LatLng point = new LatLng(Float.parseFloat(xrp.getAttributeValue(2)), Float.parseFloat(xrp.getAttributeValue(1)));
+                        LatLng point = new LatLng(pointlocation[currentindex][1], pointlocation[currentindex][0]);
                         OverlayOptions textOption = new TextOptions()
                                 .bgColor(bgcolor)
                                 .fontSize(24)
