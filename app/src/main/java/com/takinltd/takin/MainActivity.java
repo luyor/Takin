@@ -27,11 +27,8 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.Chronometer;
 import android.widget.ImageView;
+import android.widget.Toast;
 
-import com.baidu.location.BDLocation;
-import com.baidu.location.BDLocationListener;
-import com.baidu.location.LocationClient;
-import com.baidu.location.LocationClientOption;
 import com.baidu.mapapi.SDKInitializer;
 import com.baidu.mapapi.map.BaiduMap;
 import com.baidu.mapapi.map.BaiduMapOptions;
@@ -48,6 +45,7 @@ import com.baidu.mapapi.map.OverlayOptions;
 import com.baidu.mapapi.map.TextOptions;
 import com.baidu.mapapi.map.UiSettings;
 import com.baidu.mapapi.model.LatLng;
+import com.baidu.mapapi.utils.CoordinateConverter;
 
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
@@ -77,7 +75,6 @@ public class MainActivity extends AppCompatActivity{
     private int totMap;
 
     public OverlayOptions hereoption;
-    public LatLng mypoint3;
     private Marker marker;
     private boolean markerexists = false;
 
@@ -93,8 +90,8 @@ public class MainActivity extends AppCompatActivity{
 
     Vector maps = new Vector(0);
 
-    private LocationClient mLocationClient = null;
-    private BDLocationListener myLocationListener = new MyLocationListener();
+    //private LocationClient mLocationClient = null;
+   // private BDLocationListener myLocationListener = new MyLocationListener();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -127,6 +124,7 @@ public class MainActivity extends AppCompatActivity{
         ui.setAllGesturesEnabled(false);
         mBaiduMap.setMyLocationEnabled(true);
 
+        /*
         //start listening location
         mLocationClient = new LocationClient(getApplicationContext());     //声明LocationClient类
         mLocationClient.registerLocationListener(myLocationListener);    //注册监听函数
@@ -140,7 +138,7 @@ public class MainActivity extends AppCompatActivity{
         Log.d(TAG, mLocationClient.getLocOption().getScanSpan() + "");
 
         mLocationClient.start();
-        //}
+        //}*/
 
         // set xml
         maps.addElement(R.xml.map0);
@@ -190,7 +188,7 @@ public class MainActivity extends AppCompatActivity{
     private Handler handler = new Handler();
     private Runnable runnable = new Runnable() {
         public void run () {
-            mLocationClient.start();
+            LocUpdate();
             handler.postDelayed(this,2000);
         }
     };
@@ -213,25 +211,33 @@ public class MainActivity extends AppCompatActivity{
         }
     }
 
-    public class MyLocationListener implements BDLocationListener {
-        @Override
-        public void onReceiveLocation(BDLocation location) {
+    public void LocUpdate() {
 
-            //Log.d(TAG, "THIS:");
-            if (location == null)
-                return ;
-            BitmapDescriptor bitmap = BitmapDescriptorFactory
-                    .fromResource(R.drawable.imhere);
-            mypoint3 = new LatLng(location.getLatitude(), location.getLongitude());
-            hereoption = new MarkerOptions()
-                    .position(mypoint3)
-                    .icon(bitmap);
-            if(markerexists)
-                marker.remove();
-            else
-                markerexists = true;
-            marker = (Marker) (mBaiduMap.addOverlay(hereoption));
-        }
+        locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+        Criteria criteria = new Criteria();
+        String provider = locationManager.getBestProvider(criteria, true);
+        Location location = locationManager.getLastKnownLocation(provider);
+        if (location == null)
+            return;
+
+        LatLng sourceLatLng = new LatLng(location.getLatitude(), location.getLongitude());
+        CoordinateConverter converter  = new CoordinateConverter();
+        converter.from(CoordinateConverter.CoordType.COMMON);
+// sourceLatLng待转换坐标
+        converter.coord(sourceLatLng);
+        LatLng desLatLng = converter.convert();
+
+        BitmapDescriptor bitmap = BitmapDescriptorFactory
+                .fromResource(R.drawable.imhere);
+        hereoption = new MarkerOptions()
+                .position(desLatLng)
+                .icon(bitmap);
+        if(markerexists)
+            marker.remove();
+        else
+            markerexists = true;
+        marker = (Marker) (mBaiduMap.addOverlay(hereoption));
+        Toast.makeText(getApplicationContext(),desLatLng.latitude+" "+desLatLng.longitude,Toast.LENGTH_LONG).show();
     }
 
 
@@ -285,7 +291,7 @@ public class MainActivity extends AppCompatActivity{
 
                     }
                     else if (name.equals("centrepoint")) {
-                        Log.d(TAG, Float.parseFloat(xrp.getAttributeValue(0))+" "+Float.parseFloat(xrp.getAttributeValue(1)));
+                        //Log.d(TAG, Float.parseFloat(xrp.getAttributeValue(0))+" "+Float.parseFloat(xrp.getAttributeValue(1)));
                         LatLng ll = new LatLng(Float.parseFloat(xrp.getAttributeValue(1)), Float.parseFloat(xrp.getAttributeValue(0)));
                         MapStatusUpdate msu = MapStatusUpdateFactory.newLatLng(ll);
                         mBaiduMap.setMapStatus(msu);
@@ -356,6 +362,8 @@ public class MainActivity extends AppCompatActivity{
         super.onDestroy();
         //在activity执行onDestroy时执行mMapView.onDestroy()，实现地图生命周期管理
         mMapView.onDestroy();
+        handler.removeCallbacks(runnable);
+
     }
     @Override
     protected void onResume() {
