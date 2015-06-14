@@ -68,6 +68,7 @@ public class MainActivity extends AppCompatActivity{
     private BaiduMap mBaiduMap = null;
     UiSettings ui = null;
     String status = "CHOOSING_MAP";
+    boolean showP = false;
     private LocationManager locationManager;
     private Button button;
     private Chronometer timer;
@@ -162,6 +163,9 @@ public class MainActivity extends AppCompatActivity{
         });
         mDetector = new GestureDetectorCompat(this, new MyGestureListener());
 
+        bitmap = BitmapDescriptorFactory
+                .fromResource(R.drawable.imhere);
+
         locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
         Criteria criteria = new Criteria();
         criteria.setAccuracy(Criteria.ACCURACY_FINE); // 高精度
@@ -173,9 +177,10 @@ public class MainActivity extends AppCompatActivity{
 
         locationListener = new MyLocationListener();
 
-        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 10000, 25, locationListener);
-    }
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 60000, 25, locationListener);
 
+    }
+    BitmapDescriptor bitmap;
     private class MyLocationListener implements LocationListener {
 
         public void onLocationChanged(Location location) {
@@ -190,24 +195,24 @@ public class MainActivity extends AppCompatActivity{
             converter.coord(sourceLatLng);
             LatLng desLatLng = converter.convert();
 
-            BitmapDescriptor bitmap = BitmapDescriptorFactory
-                    .fromResource(R.drawable.imhere);
             hereoption = new MarkerOptions()
                     .position(desLatLng)
                     .icon(bitmap);
-            if(markerexists)
-                marker.remove();
-            else
-                markerexists = true;
-            marker = (Marker) (mBaiduMap.addOverlay(hereoption));
-            Toast.makeText(getApplicationContext(),desLatLng.latitude+" "+desLatLng.longitude,Toast.LENGTH_LONG).show();
+            if (showP) {
+                if (markerexists)
+                    marker.remove();
+                else
+                    markerexists = true;
+                marker = (Marker) (mBaiduMap.addOverlay(hereoption));
+                Toast.makeText(getApplicationContext(), desLatLng.latitude + " " + desLatLng.longitude, Toast.LENGTH_LONG).show();
+            }
         }
 
-    public void onStatusChanged(String provider, int status, Bundle extras) {}
+        public void onStatusChanged(String provider, int status, Bundle extras) {}
 
-    public void onProviderEnabled(String provider) {}
+        public void onProviderEnabled(String provider) {}
 
-    public void onProviderDisabled(String provider) {}
+        public void onProviderDisabled(String provider) {}
 
 };
 
@@ -380,12 +385,21 @@ public class MainActivity extends AppCompatActivity{
         int id = item.getItemId();
         if (id == R.id.yourPosition) {
             Log.d(TAG, "show position");
+            showP = !showP;
+            if (!showP) {
+                marker.remove();
+                markerexists = false;
+            }
+            else if (hereoption != null) {
+                markerexists = true;
+                Log.d(TAG, hereoption + "");
+                marker = (Marker) (mBaiduMap.addOverlay(hereoption));
+            }
+            else {
+                Toast.makeText(getApplicationContext(), "Position Info not Ready", Toast.LENGTH_LONG).show();
+                showP = !showP;
+            }
         }
-
-        //noinspection SimplifiableIfStatement
-        /*if (id == R.id.action_settings) {
-            return true;
-        }*/
 
         return super.onOptionsItemSelected(item);
     }
