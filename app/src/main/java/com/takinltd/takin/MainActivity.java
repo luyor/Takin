@@ -76,6 +76,11 @@ public class MainActivity extends AppCompatActivity{
     private SensorManager sm=null;
     private Sensor aSensor=null;
     private Sensor mSensor=null;
+
+    //marker 用于记录当前的点是否到达 currentpoint表示当前的点
+    int[] marker = new int[30];
+    int currentpoint = 0;
+
     float[] accelerometerValues = new float[3];
     float[] magneticFieldValues = new float[3];
     float[] values = new float[3];
@@ -173,7 +178,13 @@ public class MainActivity extends AppCompatActivity{
             return true;
         }
     }
-
+    void initialize(){
+        int i;
+        currentpoint = -1;
+        for (i = 0;i<30;i++){
+            marker[i] = 0;
+        }
+    }
     //change button/gesture when status changes
     private void SetStatus(){
         switch (status){
@@ -185,6 +196,7 @@ public class MainActivity extends AppCompatActivity{
                         mDetector.onTouchEvent(event);
                     }
                 });
+                initialize();//对marker 和 currentpoint 进行初始化
                 ui.setScrollGesturesEnabled(false);
                 ui.setZoomGesturesEnabled(false);
                 break;
@@ -201,7 +213,6 @@ public class MainActivity extends AppCompatActivity{
                 break;
             case "FINISHED":
                 button.setText("Finish");
-                break;
             default:
                 Log.wtf(TAG, "Status not supported");
         }
@@ -231,7 +242,7 @@ public class MainActivity extends AppCompatActivity{
                     }
                     else if (name.equals("controlpoint")){
                         int bgcolor = 0xAAFF0000;
-                        if (Integer.parseInt(xrp.getIdAttribute())==0){
+                        if (marker[Integer.parseInt(xrp.getIdAttribute())]==1){
                             bgcolor = 0xAA00FF00;
                         }
                         LatLng point = new LatLng(Float.parseFloat(xrp.getAttributeValue(2)), Float.parseFloat(xrp.getAttributeValue(1)));
