@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<map>
+    <name>map1</name>
+    <zoomlevel value="16"/>
+    <centrepoint longitude="120.130835" latitude="30.269867"/>
+    <controlpoint id="0" longitude="120.130835" latitude="30.269867"/>
+    <controlpoint id="1" longitude="120.124799" latitude="30.268978"/>
+    <controlpoint id="2" longitude="120.132542" latitude="30.272394"/>
+    <controlpoint id="3" longitude="120.131734" latitude="30.267637"/>
+</map>
