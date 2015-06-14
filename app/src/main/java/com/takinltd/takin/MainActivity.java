@@ -10,6 +10,7 @@ import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.location.Criteria;
 import android.location.Location;
+import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.os.Handler;
@@ -25,11 +26,8 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.Chronometer;
 import android.widget.ImageView;
+import android.widget.Toast;
 
-import com.baidu.location.BDLocation;
-import com.baidu.location.BDLocationListener;
-import com.baidu.location.LocationClient;
-import com.baidu.location.LocationClientOption;
 import com.baidu.mapapi.SDKInitializer;
 import com.baidu.mapapi.map.BaiduMap;
 import com.baidu.mapapi.map.BaiduMapOptions;
@@ -46,8 +44,7 @@ import com.baidu.mapapi.map.OverlayOptions;
 import com.baidu.mapapi.map.TextOptions;
 import com.baidu.mapapi.map.UiSettings;
 import com.baidu.mapapi.model.LatLng;
-import com.baidu.navisdk.comapi.geolocate.ILocationChangeListener;
-import com.baidu.nplatform.comapi.map.MapController;
+import com.baidu.mapapi.utils.CoordinateConverter;
 
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
@@ -56,6 +53,8 @@ import org.xmlpull.v1.XmlPullParserFactory;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.EventListener;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.Vector;
 
 
@@ -79,6 +78,8 @@ public class MainActivity extends AppCompatActivity{
     private Marker marker;
     private boolean markerexists = false;
 
+    LocationListener locationListener;
+
     // for direction info
     private SensorManager sm=null;
     private Sensor aSensor=null;
@@ -87,8 +88,9 @@ public class MainActivity extends AppCompatActivity{
     //marker 用于记录当前的点是否到达 currentpoint表示当前的点
     int[] markers = new int[30];
     int currentpoint = 0;
+    int point_number = 0;
     double[][] pointlocation = new double[30][2];
-    final double delta = 0.00001;
+    final double delta = 0.00015;
     float[] accelerometerValues = new float[3];
     float[] magneticFieldValues = new float[3];
     float[] values = new float[3];
@@ -97,8 +99,8 @@ public class MainActivity extends AppCompatActivity{
 
     Vector maps = new Vector(0);
 
-    private LocationClient mLocationClient = null;
-    private BDLocationListener myLocationListener = new MyLocationListener();
+    //private LocationClient mLocationClient = null;
+   // private BDLocationListener myLocationListener = new MyLocationListener();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -131,24 +133,6 @@ public class MainActivity extends AppCompatActivity{
         ui.setAllGesturesEnabled(false);
         mBaiduMap.setMyLocationEnabled(true);
 
-        LocationClientOption option = new LocationClientOption();
-        //start listening location
-        mLocationClient = new LocationClient(getApplicationContext());     //声明LocationClient类
-        mLocationClient.registerLocationListener(myLocationListener);    //注册监听函数
-        mLocationClient = new LocationClient(getApplicationContext());     //声明LocationClient类
-        mLocationClient.registerLocationListener(myLocationListener);    //注册监听函数
-        option.setOpenGps(true);
-        option.setAddrType("all");// 返回的定位结果包含地址信息
-        option.setCoorType("bd09ll");// 返回的定位结果是百度经纬度,默认值gcj02
-        // locationOption.disableCache(true);//禁止启用缓存定位
-        //option.setAddrType("all");// 返回的定位结果包含地址信息
-        option.setScanSpan(2000);//设置定时定位的时间间隔。单位ms
-        //option.setProdName("k");
-        mLocationClient.setLocOption(option);
-        if (mLocationClient!=null&&!mLocationClient.isStarted()){
-            mLocationClient.requestLocation();
-            mLocationClient.start();
-        }
 
         // set xml
         maps.addElement(R.xml.map0);
@@ -156,52 +140,96 @@ public class MainActivity extends AppCompatActivity{
         totMap = maps.size();
         ChangeMap(currentMap);
 
-        locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
-        Criteria criteria = new Criteria();
-        String provider = locationManager.getBestProvider(criteria, true);
-        Location location = locationManager.getLastKnownLocation(provider);
-        //locationManager.requestLocationUpdates(provider, 20000, 0, this);
-
         button.setBackgroundColor(-16777216);
         button.getBackground().setAlpha(150);
         timer.setBackgroundColor(-16777216);
         timer.getBackground().setAlpha(150);
-        SetStatus();
+        SetStatus("CHOOSING_MAP");
         //change status and set timer when button clicked
         button.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                switch (status){
+                switch (status) {
                     case "CHOOSING_MAP":
-                        status = "RUNNING";
                         timer.setBase(SystemClock.elapsedRealtime());
                         timer.start();
+                        SetStatus("RUNNING");
                         break;
                     case "RUNNING":
-                        status = "CHOOSING_MAP";
+                        ChangeMap(currentMap);
                         timer.stop();
                         timer.setBase(SystemClock.elapsedRealtime());
+                        SetStatus("CHOOSING_MAP");
                         break;
                     case "FINISHED":
-                        status = "CHOOSING_MAP";
+                        ChangeMap(currentMap);
+                        SetStatus("CHOOSING_MAP");
+                        timer.setBase(SystemClock.elapsedRealtime());
                         break;
-                    default:Log.wtf(TAG, "Status not supported");
+                    default:
+                        Log.wtf(TAG, "Status not supported");
                 }
-                SetStatus();
+
             }
         });
         mDetector = new GestureDetectorCompat(this, new MyGestureListener());
-        handler.removeCallbacks(runnable);
-        handler.postDelayed(runnable,2000);
+        locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
+        Criteria criteria = new Criteria();
+        criteria.setAccuracy(Criteria.ACCURACY_FINE); // 高精度
+        criteria.setAltitudeRequired(false);
+        criteria.setBearingRequired(false);
+        criteria.setCostAllowed(true);
+        criteria.setPowerRequirement(Criteria.POWER_LOW);
+        String provider = locationManager.getBestProvider(criteria, true);
+
+        locationListener = new MyLocationListener();
+
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 2000, 10, locationListener);
     }
 
-    private Handler handler = new Handler();
-    private Runnable runnable = new Runnable() {
-        public void run () {
-            mLocationClient.start();
-            handler.postDelayed(this,2000);
+    private class MyLocationListener implements LocationListener {
+
+        public void onLocationChanged(Location location) {
+            Log.d(TAG,location+"");
+            if (location == null)
+                return;
+
+            LatLng sourceLatLng = new LatLng(location.getLatitude(), location.getLongitude());
+            CoordinateConverter converter  = new CoordinateConverter();
+            converter.from(CoordinateConverter.CoordType.GPS);
+// sourceLatLng待转换坐标
+            converter.coord(sourceLatLng);
+            LatLng desLatLng = converter.convert();
+            if (status.equals("RUNNING")&&checkreach(desLatLng)){
+                markers[currentpoint]=1;
+                currentpoint+=1;
+                ChangeMap(currentMap);
+                if (currentpoint == point_number){
+                    SetStatus("FINISHED");
+                }
+
+            }
+            BitmapDescriptor bitmap = BitmapDescriptorFactory
+                    .fromResource(R.drawable.imhere);
+            hereoption = new MarkerOptions()
+                    .position(desLatLng)
+                    .icon(bitmap);
+            if(markerexists)
+                marker.remove();
+            else
+                markerexists = true;
+            marker = (Marker) (mBaiduMap.addOverlay(hereoption));
+            Toast.makeText(getApplicationContext(),desLatLng.latitude+" "+desLatLng.longitude,Toast.LENGTH_LONG).show();
         }
-    };
-    class MyGestureListener extends GestureDetector.SimpleOnGestureListener{
+
+    public void onStatusChanged(String provider, int status, Bundle extras) {}
+
+    public void onProviderEnabled(String provider) {}
+
+    public void onProviderDisabled(String provider) {}
+
+};
+
+    class MyGestureListener extends GestureDetector.SimpleOnGestureListener {
         public static final int MAJOR_MOVE = 0;
 
         @Override
@@ -220,44 +248,25 @@ public class MainActivity extends AppCompatActivity{
     }
     void initialize(){
         int i;
-        currentpoint = -1;
+        currentpoint = 0;
+        point_number = 0;
         for (i = 0;i<30;i++){
             markers[i] = 0;
         }
     }
 
-    boolean checkreach(BDLocation location){
-        if (Math.abs(pointlocation[currentpoint][0]-location.getLongitude())<0.2 &&
-                Math.abs(pointlocation[currentpoint][1]-location.getLatitude())<0.2){
+    boolean checkreach(LatLng desLatLng){
+        if (Math.abs(pointlocation[currentpoint][0]-desLatLng.longitude)<delta &&
+                Math.abs(pointlocation[currentpoint][1]-desLatLng.latitude)<delta){
+            Toast.makeText(getApplicationContext(),"One point reached!",Toast.LENGTH_LONG).show();
             return true;
         }
         else return false;
     }
 
-    public class MyLocationListener implements BDLocationListener {
-        @Override
-        public void onReceiveLocation(BDLocation location) {
-
-            //Log.d(TAG, "THIS:");
-            if (location == null)
-                return ;
-            BitmapDescriptor bitmap = BitmapDescriptorFactory
-                    .fromResource(R.drawable.imhere);
-            mypoint3 = new LatLng(location.getLatitude(), location.getLongitude());
-            hereoption = new MarkerOptions()
-                    .position(mypoint3)
-                    .icon(bitmap);
-            if(markerexists)
-                marker.remove();
-            else
-                markerexists = true;
-            marker = (Marker) (mBaiduMap.addOverlay(hereoption));
-        }
-    }
-
-
     //change button/gesture when status changes
-    private void SetStatus(){
+    private void SetStatus(String current){
+        status = current;
         switch (status){
             case "CHOOSING_MAP":
                 button.setText("Start");
@@ -268,6 +277,7 @@ public class MainActivity extends AppCompatActivity{
                     }
                 });
                 initialize();//对marker 和 currentpoint 进行初始化
+                ChangeMap(currentMap);
                 ui.setScrollGesturesEnabled(false);
                 ui.setZoomGesturesEnabled(false);
                 break;
@@ -284,6 +294,7 @@ public class MainActivity extends AppCompatActivity{
                 break;
             case "FINISHED":
                 button.setText("Finish");
+                timer.stop();
             default:
                 Log.wtf(TAG, "Status not supported");
         }
@@ -306,7 +317,7 @@ public class MainActivity extends AppCompatActivity{
 
                     }
                     else if (name.equals("centrepoint")) {
-                        Log.d(TAG, Float.parseFloat(xrp.getAttributeValue(0))+" "+Float.parseFloat(xrp.getAttributeValue(1)));
+                        //Log.d(TAG, Float.parseFloat(xrp.getAttributeValue(0))+" "+Float.parseFloat(xrp.getAttributeValue(1)));
                         LatLng ll = new LatLng(Float.parseFloat(xrp.getAttributeValue(1)), Float.parseFloat(xrp.getAttributeValue(0)));
                         MapStatusUpdate msu = MapStatusUpdateFactory.newLatLng(ll);
                         mBaiduMap.setMapStatus(msu);
@@ -316,9 +327,9 @@ public class MainActivity extends AppCompatActivity{
                         int currentindex;
 
                         currentindex = Integer.parseInt(xrp.getIdAttribute());
-                        pointlocation[currentindex][0] =Float.parseFloat(xrp.getAttributeValue(1));
+                        pointlocation[currentindex][0] = Float.parseFloat(xrp.getAttributeValue(1));
                         pointlocation[currentindex][1] =Float.parseFloat(xrp.getAttributeValue(2));
-
+                        point_number += 1;
                         if (markers[Integer.parseInt(xrp.getIdAttribute())]==1){
                             bgcolor = 0xAA00FF00;
                         }
@@ -383,6 +394,7 @@ public class MainActivity extends AppCompatActivity{
         super.onDestroy();
         //在activity执行onDestroy时执行mMapView.onDestroy()，实现地图生命周期管理
         mMapView.onDestroy();
+        locationManager.removeUpdates(locationListener);
     }
     @Override
     protected void onResume() {
@@ -421,5 +433,4 @@ public class MainActivity extends AppCompatActivity{
 
         return super.onOptionsItemSelected(item);
     }
-
 }
