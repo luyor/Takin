@@ -362,9 +362,7 @@ public class MainActivity extends AppCompatActivity{
         // as you specify a parent activity in AndroidManifest.xml.
 
         int id = item.getItemId();
-        Log.d(TAG, id + "");
-        Log.d(TAG, R.id.compass + "");
-        if (id == R.id.compass) {
+        if (id == R.id.yourPosition) {
             Log.d(TAG, "show position");
         }
 
