@@ -9,11 +9,10 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.location.Criteria;
-import android.location.Geocoder;
 import android.location.Location;
-import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.SystemClock;
 import android.support.v4.view.GestureDetectorCompat;
 import android.support.v7.app.AppCompatActivity;
@@ -34,10 +33,14 @@ import com.baidu.location.LocationClientOption;
 import com.baidu.mapapi.SDKInitializer;
 import com.baidu.mapapi.map.BaiduMap;
 import com.baidu.mapapi.map.BaiduMapOptions;
+import com.baidu.mapapi.map.BitmapDescriptor;
+import com.baidu.mapapi.map.BitmapDescriptorFactory;
 import com.baidu.mapapi.map.MapStatus;
 import com.baidu.mapapi.map.MapStatusUpdate;
 import com.baidu.mapapi.map.MapStatusUpdateFactory;
 import com.baidu.mapapi.map.MapView;
+import com.baidu.mapapi.map.Marker;
+import com.baidu.mapapi.map.MarkerOptions;
 import com.baidu.mapapi.map.MyLocationData;
 import com.baidu.mapapi.map.OverlayOptions;
 import com.baidu.mapapi.map.TextOptions;
@@ -71,15 +74,21 @@ public class MainActivity extends AppCompatActivity{
     private int currentMap = 0;
     private int totMap;
 
+    public OverlayOptions hereoption;
+    public LatLng mypoint3;
+    private Marker marker;
+    private boolean markerexists = false;
+
     // for direction info
     private SensorManager sm=null;
     private Sensor aSensor=null;
     private Sensor mSensor=null;
 
     //marker 用于记录当前的点是否到达 currentpoint表示当前的点
-    int[] marker = new int[30];
+    int[] markers = new int[30];
     int currentpoint = 0;
-
+    double[][] pointlocation = new double[30][2];
+    final double delta = 0.00001;
     float[] accelerometerValues = new float[3];
     float[] magneticFieldValues = new float[3];
     float[] values = new float[3];
@@ -122,12 +131,12 @@ public class MainActivity extends AppCompatActivity{
         ui.setAllGesturesEnabled(false);
         mBaiduMap.setMyLocationEnabled(true);
 
+        LocationClientOption option = new LocationClientOption();
         //start listening location
         mLocationClient = new LocationClient(getApplicationContext());     //声明LocationClient类
         mLocationClient.registerLocationListener(myLocationListener);    //注册监听函数
         mLocationClient = new LocationClient(getApplicationContext());     //声明LocationClient类
         mLocationClient.registerLocationListener(myLocationListener);    //注册监听函数
-        LocationClientOption option = new LocationClientOption();
         option.setOpenGps(true);
         option.setAddrType("all");// 返回的定位结果包含地址信息
         option.setCoorType("bd09ll");// 返回的定位结果是百度经纬度,默认值gcj02
@@ -181,8 +190,17 @@ public class MainActivity extends AppCompatActivity{
             }
         });
         mDetector = new GestureDetectorCompat(this, new MyGestureListener());
+        handler.removeCallbacks(runnable);
+        handler.postDelayed(runnable,2000);
     }
 
+    private Handler handler = new Handler();
+    private Runnable runnable = new Runnable() {
+        public void run () {
+            mLocationClient.start();
+            handler.postDelayed(this,2000);
+        }
+    };
     class MyGestureListener extends GestureDetector.SimpleOnGestureListener{
         public static final int MAJOR_MOVE = 0;
 
@@ -204,27 +222,39 @@ public class MainActivity extends AppCompatActivity{
         int i;
         currentpoint = -1;
         for (i = 0;i<30;i++){
-            marker[i] = 0;
+            markers[i] = 0;
         }
+    }
+
+    boolean checkreach(BDLocation location){
+        if (Math.abs(pointlocation[currentpoint][0]-location.getLongitude())<0.2 &&
+                Math.abs(pointlocation[currentpoint][1]-location.getLatitude())<0.2){
+            return true;
+        }
+        else return false;
     }
 
     public class MyLocationListener implements BDLocationListener {
         @Override
         public void onReceiveLocation(BDLocation location) {
+
+            //Log.d(TAG, "THIS:");
             if (location == null)
                 return ;
-            LatLng mypoint3 = new LatLng(location.getLatitude(), location.getLongitude());
-            OverlayOptions textOption = new TextOptions()
-                    .bgColor(0xAAFFFF00)
-                    .fontSize(24)
-                    .fontColor(0xFFFF00FF)
-                    .text("Iykon")
-                    .rotate(0)
-                    .position(mypoint3);
-            mBaiduMap.addOverlay(textOption);
-
+            BitmapDescriptor bitmap = BitmapDescriptorFactory
+                    .fromResource(R.drawable.imhere);
+            mypoint3 = new LatLng(location.getLatitude(), location.getLongitude());
+            hereoption = new MarkerOptions()
+                    .position(mypoint3)
+                    .icon(bitmap);
+            if(markerexists)
+                marker.remove();
+            else
+                markerexists = true;
+            marker = (Marker) (mBaiduMap.addOverlay(hereoption));
         }
     }
+
 
     //change button/gesture when status changes
     private void SetStatus(){
@@ -283,10 +313,16 @@ public class MainActivity extends AppCompatActivity{
                     }
                     else if (name.equals("controlpoint")){
                         int bgcolor = 0xAAFF0000;
-                        if (marker[Integer.parseInt(xrp.getIdAttribute())]==1){
+                        int currentindex;
+
+                        currentindex = Integer.parseInt(xrp.getIdAttribute());
+                        pointlocation[currentindex][0] =Float.parseFloat(xrp.getAttributeValue(1));
+                        pointlocation[currentindex][1] =Float.parseFloat(xrp.getAttributeValue(2));
+
+                        if (markers[Integer.parseInt(xrp.getIdAttribute())]==1){
                             bgcolor = 0xAA00FF00;
                         }
-                        LatLng point = new LatLng(Float.parseFloat(xrp.getAttributeValue(2)), Float.parseFloat(xrp.getAttributeValue(1)));
+                        LatLng point = new LatLng(pointlocation[currentindex][1], pointlocation[currentindex][0]);
                         OverlayOptions textOption = new TextOptions()
                                 .bgColor(bgcolor)
                                 .fontSize(24)
