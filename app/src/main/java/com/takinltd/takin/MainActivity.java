@@ -9,11 +9,11 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.location.Criteria;
-import android.location.Geocoder;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.SystemClock;
 import android.support.v4.view.GestureDetectorCompat;
 import android.support.v7.app.AppCompatActivity;
@@ -26,25 +26,25 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.Chronometer;
 import android.widget.ImageView;
+import android.widget.Toast;
 
-import com.baidu.location.BDLocation;
-import com.baidu.location.BDLocationListener;
-import com.baidu.location.LocationClient;
-import com.baidu.location.LocationClientOption;
 import com.baidu.mapapi.SDKInitializer;
 import com.baidu.mapapi.map.BaiduMap;
 import com.baidu.mapapi.map.BaiduMapOptions;
+import com.baidu.mapapi.map.BitmapDescriptor;
+import com.baidu.mapapi.map.BitmapDescriptorFactory;
 import com.baidu.mapapi.map.MapStatus;
 import com.baidu.mapapi.map.MapStatusUpdate;
 import com.baidu.mapapi.map.MapStatusUpdateFactory;
 import com.baidu.mapapi.map.MapView;
+import com.baidu.mapapi.map.Marker;
+import com.baidu.mapapi.map.MarkerOptions;
 import com.baidu.mapapi.map.MyLocationData;
 import com.baidu.mapapi.map.OverlayOptions;
 import com.baidu.mapapi.map.TextOptions;
 import com.baidu.mapapi.map.UiSettings;
 import com.baidu.mapapi.model.LatLng;
-import com.baidu.navisdk.comapi.geolocate.ILocationChangeListener;
-import com.baidu.nplatform.comapi.map.MapController;
+import com.baidu.mapapi.utils.CoordinateConverter;
 
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
@@ -53,6 +53,8 @@ import org.xmlpull.v1.XmlPullParserFactory;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.EventListener;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.Vector;
 
 
@@ -65,16 +67,31 @@ public class MainActivity extends AppCompatActivity{
     private BaiduMap mBaiduMap = null;
     UiSettings ui = null;
     String status = "CHOOSING_MAP";
+    boolean showP = false;
     private LocationManager locationManager;
     private Button button;
     private Chronometer timer;
     private int currentMap = 0;
     private int totMap;
 
+    public OverlayOptions hereoption;
+    public LatLng mypoint3;
+    private Marker marker;
+    private boolean markerexists = false;
+
+    LocationListener locationListener;
+
     // for direction info
     private SensorManager sm=null;
     private Sensor aSensor=null;
     private Sensor mSensor=null;
+
+    //marker 用于记录当前的点是否到达 currentpoint表示当前的点
+    int[] markers = new int[30];
+    int currentpoint = 0;
+    int point_number = 0;
+    double[][] pointlocation = new double[30][2];
+    final double delta = 0.00015;
     float[] accelerometerValues = new float[3];
     float[] magneticFieldValues = new float[3];
     float[] values = new float[3];
@@ -83,8 +100,8 @@ public class MainActivity extends AppCompatActivity{
 
     Vector maps = new Vector(0);
 
-    private LocationClient mLocationClient = null;
-    private BDLocationListener myLocationListener = new MyLocationListener();
+    //private LocationClient mLocationClient = null;
+   // private BDLocationListener myLocationListener = new MyLocationListener();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -117,24 +134,6 @@ public class MainActivity extends AppCompatActivity{
         ui.setAllGesturesEnabled(false);
         mBaiduMap.setMyLocationEnabled(true);
 
-        //start listening location
-        mLocationClient = new LocationClient(getApplicationContext());     //声明LocationClient类
-        mLocationClient.registerLocationListener(myLocationListener);    //注册监听函数
-        mLocationClient = new LocationClient(getApplicationContext());     //声明LocationClient类
-        mLocationClient.registerLocationListener(myLocationListener);    //注册监听函数
-        LocationClientOption option = new LocationClientOption();
-        option.setOpenGps(true);
-        option.setAddrType("all");// 返回的定位结果包含地址信息
-        option.setCoorType("bd09ll");// 返回的定位结果是百度经纬度,默认值gcj02
-        // locationOption.disableCache(true);//禁止启用缓存定位
-        //option.setAddrType("all");// 返回的定位结果包含地址信息
-        option.setScanSpan(2000);//设置定时定位的时间间隔。单位ms
-        //option.setProdName("k");
-        mLocationClient.setLocOption(option);
-        if (mLocationClient!=null&&!mLocationClient.isStarted()){
-            mLocationClient.requestLocation();
-            mLocationClient.start();
-        }
 
         // set xml
         maps.addElement(R.xml.map0);
@@ -143,43 +142,100 @@ public class MainActivity extends AppCompatActivity{
         totMap = maps.size();
         ChangeMap(currentMap);
 
-        locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
-        Criteria criteria = new Criteria();
-        String provider = locationManager.getBestProvider(criteria, true);
-        Location location = locationManager.getLastKnownLocation(provider);
-        //locationManager.requestLocationUpdates(provider, 20000, 0, this);
-
         button.setBackgroundColor(-16777216);
         button.getBackground().setAlpha(150);
         timer.setBackgroundColor(-16777216);
         timer.getBackground().setAlpha(150);
-        SetStatus();
+        SetStatus("CHOOSING_MAP");
         //change status and set timer when button clicked
         button.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                switch (status){
+                switch (status) {
                     case "CHOOSING_MAP":
-                        status = "RUNNING";
                         timer.setBase(SystemClock.elapsedRealtime());
                         timer.start();
+                        SetStatus("RUNNING");
                         break;
                     case "RUNNING":
-                        status = "CHOOSING_MAP";
+                        ChangeMap(currentMap);
                         timer.stop();
                         timer.setBase(SystemClock.elapsedRealtime());
+                        SetStatus("CHOOSING_MAP");
                         break;
                     case "FINISHED":
-                        status = "CHOOSING_MAP";
+                        ChangeMap(currentMap);
+                        SetStatus("CHOOSING_MAP");
+                        timer.setBase(SystemClock.elapsedRealtime());
                         break;
-                    default:Log.wtf(TAG, "Status not supported");
+                    default:
+                        Log.wtf(TAG, "Status not supported");
                 }
-                SetStatus();
+
             }
         });
         mDetector = new GestureDetectorCompat(this, new MyGestureListener());
+
+        bitmap = BitmapDescriptorFactory
+                .fromResource(R.drawable.imhere);
+
+        locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
+        Criteria criteria = new Criteria();
+        criteria.setAccuracy(Criteria.ACCURACY_FINE); // 高精度
+        criteria.setAltitudeRequired(false);
+        criteria.setBearingRequired(false);
+        criteria.setCostAllowed(true);
+        criteria.setPowerRequirement(Criteria.POWER_LOW);
+        String provider = locationManager.getBestProvider(criteria, true);
+
+        locationListener = new MyLocationListener();
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 2000, 10, locationListener);
     }
 
-    class MyGestureListener extends GestureDetector.SimpleOnGestureListener{
+    BitmapDescriptor bitmap;
+    private class MyLocationListener implements LocationListener {
+
+        public void onLocationChanged(Location location) {
+            Log.d(TAG,location+"");
+            if (location == null)
+                return;
+
+            LatLng sourceLatLng = new LatLng(location.getLatitude(), location.getLongitude());
+            CoordinateConverter converter  = new CoordinateConverter();
+            converter.from(CoordinateConverter.CoordType.GPS);
+// sourceLatLng待转换坐标
+            converter.coord(sourceLatLng);
+            LatLng desLatLng = converter.convert();
+            if (status.equals("RUNNING")&&checkreach(desLatLng)){
+                markers[currentpoint]=1;
+                currentpoint+=1;
+                ChangeMap(currentMap);
+                if (currentpoint == point_number){
+                    SetStatus("FINISHED");
+                }
+            }
+
+            hereoption = new MarkerOptions()
+                    .position(desLatLng)
+                    .icon(bitmap);
+            if (showP) {
+                if (markerexists)
+                    marker.remove();
+                else
+                    markerexists = true;
+                marker = (Marker) (mBaiduMap.addOverlay(hereoption));
+                Toast.makeText(getApplicationContext(), desLatLng.latitude + " " + desLatLng.longitude, Toast.LENGTH_LONG).show();
+            }
+        }
+
+        public void onStatusChanged(String provider, int status, Bundle extras) {}
+
+        public void onProviderEnabled(String provider) {}
+
+        public void onProviderDisabled(String provider) {}
+
+};
+
+    class MyGestureListener extends GestureDetector.SimpleOnGestureListener {
         public static final int MAJOR_MOVE = 0;
 
         @Override
@@ -195,28 +251,28 @@ public class MainActivity extends AppCompatActivity{
             }
             return true;
         }
-    }
-
-    public class MyLocationListener implements BDLocationListener {
-        @Override
-        public void onReceiveLocation(BDLocation location) {
-            if (location == null)
-                return ;
-            LatLng mypoint3 = new LatLng(location.getLatitude(), location.getLongitude());
-            OverlayOptions textOption = new TextOptions()
-                    .bgColor(0xAAFFFF00)
-                    .fontSize(24)
-                    .fontColor(0xFFFF00FF)
-                    .text("Iykon")
-                    .rotate(0)
-                    .position(mypoint3);
-            mBaiduMap.addOverlay(textOption);
-
+    };
+    void initialize(){
+        int i;
+        currentpoint = 0;
+        point_number = 0;
+        for (i = 0;i<30;i++){
+            markers[i] = 0;
         }
     }
 
+    boolean checkreach(LatLng desLatLng){
+        if (Math.abs(pointlocation[currentpoint][0]-desLatLng.longitude)<delta &&
+                Math.abs(pointlocation[currentpoint][1]-desLatLng.latitude)<delta){
+            Toast.makeText(getApplicationContext(),"One point reached!",Toast.LENGTH_LONG).show();
+            return true;
+        }
+        else return false;
+    }
+
     //change button/gesture when status changes
-    private void SetStatus(){
+    private void SetStatus(String current){
+        status = current;
         switch (status){
             case "CHOOSING_MAP":
                 button.setText("Start");
@@ -226,6 +282,8 @@ public class MainActivity extends AppCompatActivity{
                         mDetector.onTouchEvent(event);
                     }
                 });
+                initialize();//对marker 和 currentpoint 进行初始化
+                ChangeMap(currentMap);
                 ui.setScrollGesturesEnabled(false);
                 ui.setZoomGesturesEnabled(false);
                 break;
@@ -242,7 +300,7 @@ public class MainActivity extends AppCompatActivity{
                 break;
             case "FINISHED":
                 button.setText("Finish");
-                break;
+                timer.stop();
             default:
                 Log.wtf(TAG, "Status not supported");
         }
@@ -266,17 +324,23 @@ public class MainActivity extends AppCompatActivity{
 
                     }
                     else if (name.equals("centrepoint")) {
-                        Log.d(TAG, Float.parseFloat(xrp.getAttributeValue(0))+" "+Float.parseFloat(xrp.getAttributeValue(1)));
+                        //Log.d(TAG, Float.parseFloat(xrp.getAttributeValue(0))+" "+Float.parseFloat(xrp.getAttributeValue(1)));
                         LatLng ll = new LatLng(Float.parseFloat(xrp.getAttributeValue(1)), Float.parseFloat(xrp.getAttributeValue(0)));
                         MapStatusUpdate msu = MapStatusUpdateFactory.newLatLng(ll);
                         mBaiduMap.setMapStatus(msu);
                     }
                     else if (name.equals("controlpoint")){
                         int bgcolor = 0xAAFF0000;
-                        if (Integer.parseInt(xrp.getIdAttribute())==0){
+                        int currentindex;
+
+                        currentindex = Integer.parseInt(xrp.getIdAttribute());
+                        pointlocation[currentindex][0] = Float.parseFloat(xrp.getAttributeValue(1));
+                        pointlocation[currentindex][1] =Float.parseFloat(xrp.getAttributeValue(2));
+                        point_number += 1;
+                        if (markers[Integer.parseInt(xrp.getIdAttribute())]==1){
                             bgcolor = 0xAA00FF00;
                         }
-                        LatLng point = new LatLng(Float.parseFloat(xrp.getAttributeValue(2)), Float.parseFloat(xrp.getAttributeValue(1)));
+                        LatLng point = new LatLng(pointlocation[currentindex][1], pointlocation[currentindex][0]);
                         OverlayOptions textOption = new TextOptions()
                                 .bgColor(bgcolor)
                                 .fontSize(24)
@@ -337,6 +401,7 @@ public class MainActivity extends AppCompatActivity{
         super.onDestroy();
         //在activity执行onDestroy时执行mMapView.onDestroy()，实现地图生命周期管理
         mMapView.onDestroy();
+        locationManager.removeUpdates(locationListener);
     }
     @Override
     protected void onResume() {
@@ -362,14 +427,26 @@ public class MainActivity extends AppCompatActivity{
         // Handle action bar item clicks here. The action bar will
         // automatically handle clicks on the Home/Up button, so long
         // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
 
-        //noinspection SimplifiableIfStatement
-        /*if (id == R.id.action_settings) {
-            return true;
-        }*/
+        int id = item.getItemId();
+        if (id == R.id.yourPosition) {
+            Log.d(TAG, "show position");
+            showP = !showP;
+            if (!showP) {
+                marker.remove();
+                markerexists = false;
+            }
+            else if (hereoption != null) {
+                markerexists = true;
+                Log.d(TAG, hereoption + "");
+                marker = (Marker) (mBaiduMap.addOverlay(hereoption));
+            }
+            else {
+                Toast.makeText(getApplicationContext(), "Position Info not Ready", Toast.LENGTH_LONG).show();
+                showP = !showP;
+            }
+        }
 
         return super.onOptionsItemSelected(item);
     }
-
 }
