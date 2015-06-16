@@ -195,7 +195,7 @@ public class MainActivity extends AppCompatActivity{
     private class MyLocationListener implements LocationListener {
 
         public void onLocationChanged(Location location) {
-            Log.d(TAG,location+"");
+           // Log.d(TAG,location+"");
             if (location == null)
                 return;
 
@@ -264,7 +264,7 @@ public class MainActivity extends AppCompatActivity{
     boolean checkreach(LatLng desLatLng){
         if (Math.abs(pointlocation[currentpoint][0]-desLatLng.longitude)<delta &&
                 Math.abs(pointlocation[currentpoint][1]-desLatLng.latitude)<delta){
-            Toast.makeText(getApplicationContext(),"One point reached!",Toast.LENGTH_LONG).show();
+            Toast.makeText(getApplicationContext(),"One point reached!"+currentpoint,Toast.LENGTH_LONG).show();
             return true;
         }
         else return false;
@@ -308,6 +308,8 @@ public class MainActivity extends AppCompatActivity{
 
     private void ChangeMap(int index){
         //Log.d(TAG, "change map:"+index);
+        int i;
+        point_number = 0;
         mBaiduMap.clear();
         currentMap = index;
         Resources r = getResources();
@@ -361,6 +363,7 @@ public class MainActivity extends AppCompatActivity{
         } catch (IOException e) {
             e.printStackTrace();
         }
+        //Log.d(TAG,point_number+"A");
         xrp.close();
     }
 
@@ -430,7 +433,7 @@ public class MainActivity extends AppCompatActivity{
 
         int id = item.getItemId();
         if (id == R.id.yourPosition) {
-            Log.d(TAG, "show position");
+           // Log.d(TAG, "show position");
             showP = !showP;
             if (!showP) {
                 marker.remove();
@@ -438,7 +441,7 @@ public class MainActivity extends AppCompatActivity{
             }
             else if (hereoption != null) {
                 markerexists = true;
-                Log.d(TAG, hereoption + "");
+                //Log.d(TAG, hereoption + "");
                 marker = (Marker) (mBaiduMap.addOverlay(hereoption));
             }
             else {
