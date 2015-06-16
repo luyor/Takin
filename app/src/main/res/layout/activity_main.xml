@@ -41,7 +41,7 @@
         android:layout_alignParentRight="true"
         android:textSize="30dp"
         android:textColor="#FFFFFFFF"
-        android:format="%s"/>
+        />
 
     <ImageView
         android:id="@+id/compass"

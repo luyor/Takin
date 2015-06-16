@@ -3,8 +3,8 @@
     <name>map0</name>
     <zoomlevel value="16"/>
     <centrepoint longitude="120.093091" latitude="30.310444"/>
-    <controlpoint id="0" longitude="120.09227" latitude="30.314029"/>
-    <controlpoint id="1" longitude="120.092746" latitude="30.313764"/>
-    <controlpoint id="2" longitude="120.089758" latitude="30.314692"/>
-    <controlpoint id="3" longitude="120.088877" latitude="30.312583"/>
+    <controlpoint id="0" longitude="120.088763" latitude="30.313584"/>
+    <controlpoint id="1" longitude="120.092104" latitude="30.314675"/>
+    <controlpoint id="2" longitude="120.092913" latitude="30.311472"/>
+    <controlpoint id="3" longitude="120.095545" latitude="30.310451"/>
 </map>

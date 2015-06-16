@@ -138,6 +138,7 @@ public class MainActivity extends AppCompatActivity{
         // set xml
         maps.addElement(R.xml.map0);
         maps.addElement(R.xml.map1);
+        maps.addElement(R.xml.map2);
         totMap = maps.size();
         ChangeMap(currentMap);
 
@@ -307,6 +308,7 @@ public class MainActivity extends AppCompatActivity{
 
     private void ChangeMap(int index){
         //Log.d(TAG, "change map:"+index);
+        mBaiduMap.clear();
         currentMap = index;
         Resources r = getResources();
         XmlResourceParser xrp = r.getXml((int)maps.elementAt(index));
