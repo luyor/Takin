@@ -254,14 +254,11 @@ public class MainActivity extends AppCompatActivity{
     };
     void initialize(){
         int i;
-        currentpoint = 3;
+        currentpoint = 0;
         point_number = 0;
         for (i = 0;i<30;i++){
             markers[i] = 0;
         }
-        markers[0] = 1;
-        markers[1] = 1;
-        markers[2] = 1;
     }
 
     boolean checkreach(LatLng desLatLng){
